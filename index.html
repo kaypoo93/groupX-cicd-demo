@@ -167,23 +167,3 @@ cat > "$STAGE/index.html" <<'GTA6_HTML_EOF' -->
 </body>
 </html>
 
-<!-- GTA6_HTML_EOF
- 
- 3. Still in the background install window: stamp the instance ID into the footer (IMDSv2)
-TOKEN=$(curl -s --max-time 2 -X PUT "http://169.254.169.254/latest/api/token" \
-  -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
-WHO=$(curl -s --max-time 2 -H "X-aws-ec2-metadata-token: $TOKEN" \
-http://169.254.169.254/latest/meta-data/instance-id || true)
-[ -z "$WHO" ] && WHO=$(hostname)
-sed -i "s/__HOST__/$WHO ($WEB_SERVER)/" "$STAGE/index.html"
- 
-# 4. Wait for the install to finish (the script stops here if it failed)
-wait "$INSTALL_PID"
- 
-# 5. Publish the page and start the server now and on every reboot
-mkdir -p "$DOCROOT"
-cp "$STAGE/index.html" "$DOCROOT/index.html"
-chmod -R a+rX "$DOCROOT"
-systemctl enable "$SERVICE"
-systemctl restart "$SERVICE"
-echo "GTA VI site is live on $WEB_SERVER"### -->
