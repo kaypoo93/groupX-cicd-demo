@@ -1,169 +1,172 @@
-<!-- #!/bin/bash
-# GTA VI site: ONE script for EC2 user data (Amazon Linux 2023 or Ubuntu).
-# The web server installs in the background while the page is written and stamped.
-# Change WEB_SERVER to "httpd" or "nginx".
-set -euxo pipefail
-exec > >(tee /var/log/user-data.log) 2>&1
- 
-WEB_SERVER="nginx"   # <-- "httpd" or "nginx"
- 
-# Work out package, service and web root up front (a background job can't hand variables back)
-if command -v dnf >/dev/null 2>&1; then
-  PKG="$WEB_SERVER"; SERVICE="$WEB_SERVER"
-  if [ "$WEB_SERVER" = "nginx" ]; then DOCROOT="/usr/share/nginx/html"; else DOCROOT="/var/www/html"; fi
-  install_server() { dnf install -y "$PKG"; }
-else
-  if [ "$WEB_SERVER" = "httpd" ]; then PKG="apache2"; else PKG="nginx"; fi
-  SERVICE="$PKG"; DOCROOT="/var/www/html"
-  install_server() { apt-get update -y && apt-get install -y "$PKG"; }
-fi
- 
-# 1. Start installing the server in the background
-install_server &
-INSTALL_PID=$!
- 
-# 2. Meanwhile, write the static page to a staging folder
-STAGE="/tmp/gta6-site"
-mkdir -p "$STAGE"
-cat > "$STAGE/index.html" <<'GTA6_HTML_EOF' -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grand Theft Auto VI: Welcome to Leonida</title>
+<title>Golden Crumb Bakery | Fresh bread, Tema</title>
+<meta name="description" content="Fresh bread, pastries and cakes baked every morning in Tema.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bungee&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --night: #1a0b3b;
-    --dusk: #4b1d8f;
-    --pink: #ff3d9a;
-    --orange: #ff8a3d;
-    --cyan: #22e5ff;
-    --sand: #fff1d6;
+    --butter: #fbe7a1;
+    --crust: #4a2616;
+    --berry: #b8174f;
+    --flour: #fffaf0;
+    --dough: #f3c969;
+    --display: "Bagel Fat One", "Arial Rounded MT Bold", Impact, sans-serif;
+    --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--night);
-    color: var(--sand);
-    line-height: 1.6;
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--body); background: var(--butter); color: var(--crust); line-height: 1.6; font-size: 1.05rem; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--berry); outline-offset: 3px; }
+  .wrap { width: min(1080px, 92%); margin-inline: auto; }
+
+  header { padding: 1.1rem 0; }
+  header .wrap { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .logo { font-family: var(--display); font-size: 1.4rem; text-decoration: none; }
+  nav { display: flex; gap: 1.4rem; }
+  nav a { text-decoration: none; font-weight: 500; }
+  nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+  .hero { padding: 3rem 0 4rem; }
+  .hero .wrap { display: grid; grid-template-columns: 1.15fr 1fr; gap: 3rem; align-items: center; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(2.8rem, 8vw, 5.6rem); line-height: 1; letter-spacing: -0.01em; }
+  .hero p.lead { margin-top: 1.4rem; max-width: 34ch; font-size: 1.2rem; }
+  .btns { margin-top: 2rem; display: flex; gap: 0.9rem; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 0.85rem 1.5rem; border-radius: 999px; font-weight: 700; text-decoration: none; border: 3px solid var(--crust); }
+  .btn.primary { background: var(--berry); color: var(--flour); border-color: var(--berry); }
+  .btn.primary:hover { background: var(--crust); border-color: var(--crust); }
+  .btn.ghost:hover { background: var(--crust); color: var(--butter); }
+
+  /* The one memorable element: today's board */
+  .board { background: var(--crust); color: var(--flour); border-radius: 22px; padding: 1.6rem 1.6rem 1.2rem; transform: rotate(1.5deg); box-shadow: 10px 10px 0 var(--berry); }
+  .board h2 { font-family: var(--display); font-weight: 400; font-size: 1.7rem; color: var(--dough); }
+  .board p.sub { font-size: 0.95rem; opacity: 0.8; margin-bottom: 0.8rem; }
+  .board ul { list-style: none; }
+  .board li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-top: 2px dashed rgba(255,250,240,0.3); }
+  .board time { color: var(--dough); font-weight: 700; white-space: nowrap; }
+
+  section { padding: 4rem 0; }
+  .menu { background: var(--flour); }
+  h2.title { font-family: var(--display); font-weight: 400; font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; }
+  .intro { margin-top: 0.8rem; max-width: 52ch; }
+  .grid { margin-top: 2.2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.6rem; }
+  .item { border: 3px solid var(--crust); border-radius: 18px; padding: 1.4rem; background: var(--butter); }
+  .item:nth-child(even) { background: var(--dough); }
+  .item .emoji { font-size: 2.4rem; display: block; margin-bottom: 0.4rem; }
+  .item h3 { font-size: 1.25rem; }
+  .item p { font-size: 0.97rem; margin: 0.3rem 0 0.8rem; }
+  .price { font-weight: 700; color: var(--berry); }
+
+  .story .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
+  .story p + p { margin-top: 1rem; }
+  .hours { background: var(--flour); border: 3px solid var(--crust); border-radius: 18px; padding: 1.6rem; }
+  .hours dl { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.2rem; margin-top: 0.8rem; }
+  .hours dt { font-weight: 700; }
+
+  .order { background: var(--berry); color: var(--flour); text-align: center; }
+  .order .btn { background: var(--flour); color: var(--berry); border-color: var(--flour); margin-top: 1.6rem; }
+  .order .btn:hover { background: var(--crust); border-color: var(--crust); color: var(--flour); }
+  .order p { max-width: 48ch; margin: 0.8rem auto 0; }
+
+  footer { padding: 1.6rem 0; text-align: center; font-size: 0.92rem; }
+
+  @media (max-width: 800px) {
+    .hero .wrap, .story .wrap { grid-template-columns: 1fr; gap: 2.2rem; }
+    .board { transform: none; }
   }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
- 
-  /* Hero: a Vice City sunset with a striped sun */
-  .hero {
-    position: relative;
-    overflow: hidden;
-    padding: 72px 0 120px;
-    background: linear-gradient(180deg, var(--night) 0%, var(--dusk) 45%, var(--pink) 82%, var(--orange) 100%);
-  }
-  .sun {
-    position: absolute; left: 50%; bottom: -150px; transform: translateX(-50%);
-    width: 460px; height: 460px; border-radius: 50%;
-    background: linear-gradient(180deg, #ffd23d, var(--orange) 55%, var(--pink));
-    -webkit-mask: repeating-linear-gradient(180deg, #000 0 26px, transparent 26px 34px);
-            mask: repeating-linear-gradient(180deg, #000 0 26px, transparent 26px 34px);
-    opacity: .9;
-  }
-  .hero .wrap { position: relative; text-align: center; }
-  .badge {
-    display: inline-block; padding: 6px 16px; border-radius: 999px;
-    background: var(--cyan); color: var(--night); font-weight: 700;
-  }
-  h1 {
-    font-family: "Bungee", Impact, sans-serif;
-    font-weight: 400;
-    font-size: clamp(3.2rem, 13vw, 9rem);
-    line-height: .95;
-    margin: 20px 0 12px;
-    color: var(--sand);
-    text-shadow: 5px 5px 0 var(--pink), 10px 10px 0 var(--cyan);
-  }
-  .tagline { font-size: 1.25rem; max-width: 46ch; margin: 0 auto; }
- 
-  main { padding: 56px 0 24px; }
-  h2 { font-family: "Bungee", Impact, sans-serif; font-weight: 400; font-size: 1.9rem; margin: 0 0 22px; color: var(--cyan); }
-  section { margin-bottom: 64px; }
- 
-  .facts { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
-  .fact { padding: 22px; border-radius: 18px; color: var(--night); }
-  .fact:nth-child(1) { background: var(--pink); }
-  .fact:nth-child(2) { background: var(--cyan); }
-  .fact:nth-child(3) { background: var(--orange); }
-  .fact:nth-child(4) { background: var(--sand); }
-  .fact h3 { margin: 0 0 6px; font-size: 1.1rem; }
-  .fact p { margin: 0; font-weight: 500; }
- 
-  /* Timeline: this really is a sequence */
-  .timeline { list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 4px solid var(--pink); }
-  .timeline li { position: relative; padding: 0 0 22px 22px; }
-  .timeline li::before {
-    content: ""; position: absolute; left: -35px; top: 6px; width: 18px; height: 18px;
-    border-radius: 50%; background: var(--cyan); border: 4px solid var(--night);
-  }
-  .timeline li.done::before { background: var(--orange); }
-  .timeline b { color: var(--orange); }
- 
-  .notes { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-  .note { padding: 18px 20px; border-radius: 14px; background: rgba(255, 255, 255, .08); border-left: 6px solid var(--cyan); }
-  .note:nth-child(even) { border-left-color: var(--pink); }
-  .note strong { display: block; margin-bottom: 2px; }
- 
-  footer { padding: 28px 0 40px; text-align: center; font-size: .9rem; background: #0f0524; }
-  footer p { margin: 4px 0; opacity: .8; }
-  @media (max-width: 520px) { .sun { width: 320px; height: 320px; bottom: -110px; } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
-<header class="hero">
-<div class="sun" aria-hidden="true"></div>
-<div class="wrap">
-<span class="badge">Out now on PS5 and Xbox Series X|S</span>
-<h1>GTA VI</h1>
-<p class="tagline">Jason and Lucia head to Leonida, where Vice City's neon streets are only the start.</p>
-</div>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="#top">Golden Crumb</a>
+    <nav aria-label="Main">
+      <a href="#menu">Menu</a>
+      <a href="#visit">Visit</a>
+      <a href="#order">Order</a>
+    </nav>
+  </div>
 </header>
- 
-  <main class="wrap">
-<section>
-<h2>At a glance</h2>
-<div class="facts">
-<div class="fact"><h3>Released</h3><p>Thursday, November 19, 2026</p></div>
-<div class="fact"><h3>Platforms</h3><p>PlayStation 5 and Xbox Series X|S</p></div>
-<div class="fact"><h3>Setting</h3><p>Leonida, with modern-day Vice City and six regions to explore</p></div>
-<div class="fact"><h3>Leads</h3><p>Jason Duval and Lucia Caminos</p></div>
-</div>
-</section>
- 
-    <section>
-<h2>The long road to launch</h2>
-<ol class="timeline">
-<li class="done"><b>December 2023.</b> Trailer 1 reveals the game, pointing to a 2025 release.</li>
-<li class="done"><b>May 6, 2025.</b> Trailer 2 arrives.</li>
-<li class="done"><b>First delay.</b> Release moves to May 26, 2026.</li>
-<li class="done"><b>November 6, 2025.</b> Rockstar moves the date again, to November 19, 2026.</li>
-<li><b>November 19, 2026.</b> The date holds and the game launches.</li>
-</ol>
-</section>
- 
-    <section>
-<h2>Good to know</h2>
-<div class="notes">
-<div class="note"><strong>Single-player at launch</strong>No co-op or split-screen, and no date yet for a GTA 6 online mode. The existing GTA Online keeps running separately.</div>
-<div class="note"><strong>No PC version announced</strong>Rockstar's game page lists the two consoles only.</div>
-<div class="note"><strong>Radio and podcasts</strong>Listen in vehicles and on foot through in-game headphones and earbuds connected to the phone.</div>
-<div class="note"><strong>Plan your storage</strong>PlayStation advised freeing at least 212 GB for the PS5 preload.</div>
-</div>
-</section>
+
+<main id="top">
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <h1>Bread that’s still warm.</h1>
+        <p class="lead">We bake in small batches from 4 a.m., so what you buy at breakfast came out of the oven this morning.</p>
+        <div class="btns">
+          <a class="btn primary" href="#order">Order for pickup</a>
+          <a class="btn ghost" href="#menu">See the menu</a>
+        </div>
+      </div>
+      <aside class="board" aria-label="Today’s bake">
+        <h2>Out of the oven today</h2>
+        <p class="sub">Times are when each batch comes out.</p>
+        <ul>
+          <li><span>Soft sugar bread</span><time>6:00 a.m.</time></li>
+          <li><span>Butter croissants</span><time>7:30 a.m.</time></li>
+          <li><span>Meat pies</span><time>10:00 a.m.</time></li>
+          <li><span>Whole wheat loaf</span><time>12:00 p.m.</time></li>
+          <li><span>Coconut buns</span><time>3:00 p.m.</time></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <section class="menu" id="menu">
+    <div class="wrap">
+      <h2 class="title">What we bake</h2>
+      <p class="intro">A short menu, made fresh. Prices are in Ghana cedis (GH₵).</p>
+      <div class="grid">
+        <article class="item"><span class="emoji" aria-hidden="true">🍞</span><h3>Sugar bread</h3><p>Soft, lightly sweet and perfect with tea.</p><span class="price">GH₵ 20</span></article>
+        <article class="item"><span class="emoji" aria-hidden="true">🥐</span><h3>Butter croissant</h3><p>Flaky layers, baked golden every morning.</p><span class="price">GH₵ 15</span></article>
+        <article class="item"><span class="emoji" aria-hidden="true">🥧</span><h3>Meat pie</h3><p>Seasoned beef in a crisp, buttery crust.</p><span class="price">GH₵ 18</span></article>
+        <article class="item"><span class="emoji" aria-hidden="true">🥖</span><h3>Whole wheat loaf</h3><p>Dense, nutty and good for sandwiches.</p><span class="price">GH₵ 28</span></article>
+        <article class="item"><span class="emoji" aria-hidden="true">🥥</span><h3>Coconut bun</h3><p>Sweet bun topped with toasted coconut.</p><span class="price">GH₵ 8</span></article>
+        <article class="item"><span class="emoji" aria-hidden="true">🎂</span><h3>Celebration cake</h3><p>Vanilla or chocolate. Order 2 days ahead.</p><span class="price">From GH₵ 250</span></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="story" id="visit">
+    <div class="wrap">
+      <div>
+        <h2 class="title">A neighbourhood bakery</h2>
+        <p class="intro">Golden Crumb started with one oven and one rule: sell it the day it is baked. We use simple ingredients, real butter and no shortcuts.</p>
+        <p>Drop in for a loaf on your way to work, or order a cake for the weekend. We are happy to help.</p>
+      </div>
+      <div class="hours">
+        <h3>Opening hours</h3>
+        <dl>
+          <dt>Mon to Fri</dt><dd>6:00 a.m. to 7:00 p.m.</dd>
+          <dt>Saturday</dt><dd>6:00 a.m. to 8:00 p.m.</dd>
+          <dt>Sunday</dt><dd>Closed</dd>
+        </dl>
+        <p style="margin-top:1rem">Community 10, Tema, Ghana</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="order" id="order">
+    <div class="wrap">
+      <h2 class="title">Order for pickup/ delivery</h2>
+      <p>Send us a message with what you would like and the time you will collect it. We will confirm within the hour.</p>
+      <a class="btn" href="tel:+233553586733">Call +233 5535 86733</a>
+      <a class="btn" href="tel:+233507002287">Call +233 5070 02287</a>
+    </div>
+  </section>
 </main>
- 
-  <footer>
-<p>Fan-made page. Not affiliated with Rockstar Games or Take-Two Interactive.</p>
-<p>Served by K.P._Groups</p>
+
+<footer>
+  <div class="wrap"><p>© 2026 Golden Crumb Bakery. Served by K.P._Groups</p></div>
 </footer>
+
 </body>
 </html>
-
